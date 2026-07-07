@@ -1014,14 +1014,15 @@ const CH = ['初傳','中傳','末傳'];
 // 式盤格位：外圈十二宮在 4x4 網格中的位置（row,col），傳統巳午未申居上
 const GRID = {5:[0,0],6:[0,1],7:[0,2],8:[0,3],4:[1,0],9:[1,3],3:[2,0],10:[2,3],2:[3,0],1:[3,1],0:[3,2],11:[3,3]};
 
-const RADAR_AXES = ['時令','坐地','天將','干繫','結構','類神','年命'];
 function radarVals(score, withNM){
   const comps = ['時令','坐地','天將','干繫'].map(k =>
     score.per.reduce((s,p,i)=>s+p.comps[k].v*WEIGHTS[i],0));
-  return [...comps, score.structSum, score.leishen?score.leishen.val:0,
-    (withNM && score.nianming)? score.nianming.val : 0];
+  const six = [...comps, score.structSum, score.leishen?score.leishen.val:0];
+  return withNM ? [...six, score.nianming.val] : six;
 }
 function buildRadar(score){
+  const hasNM = !!score.nianming;
+  const RADAR_AXES = ['時令','坐地','天將','干繫','結構','類神', ...(hasNM?['年命']:[])];
   const W=340, H=310, cx=W/2, cy=H/2+4, R=108, n=RADAR_AXES.length;
   const pt=(i,v)=>{ const a=-Math.PI/2 + i*2*Math.PI/n;
     const r=R*(Math.max(-2.5,Math.min(2.5,v))+2.5)/5;
@@ -1031,8 +1032,9 @@ function buildRadar(score){
   const axes=RADAR_AXES.map((lab,i)=>{ const [x,y]=pt(i,2.5); const [lx,ly]=[cx+(x-cx)*1.17, cy+(y-cy)*1.17];
     return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#3a2d1e"/>`+
       `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#a18a67">${lab}</text>`; });
-  const base = radarVals(score,false), over = score.nianming? radarVals(score,true):null;
-  let legend = `<div class="radar-legend"><span><span class="sw" style="background:#d3a75c88"></span>本課六要素</span>`;
+  const base = hasNM ? [...radarVals(score,false), 0] : radarVals(score,false);
+  const over = hasNM ? radarVals(score,true) : null;
+  let legend = `<div class="radar-legend"><span><span class="sw" style="background:#d3a75c88"></span>課面六要素${hasNM?'（年命軸置零）':''}</span>`;
   if(over) legend += `<span><span class="sw" style="background:#86ad9288"></span>含年命個人項</span>`;
   legend += '</div>';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="分項雷達圖">
