@@ -201,6 +201,23 @@ details[open] summary::before{content:"▾ ";}
   .loglist{font-size:12.5px; padding:2px 12px 14px;}
   .modelnote{font-size:12.5px;}
 }
+.adv{margin-top:14px; background:var(--inset);}
+.advgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:4px 14px 14px;}
+@media (max-width:480px){.advgrid{grid-template-columns:1fr;}}
+.tstline{margin-top:12px; padding:10px 14px; border:1px solid var(--hair2); font-size:13px; color:var(--muted); background:var(--panel2); border-radius:3px; line-height:1.9;}
+.tstline b{color:var(--bone); font-weight:600;}
+#radarbox{display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:20px;}
+.radar-legend{font-size:12px; color:var(--muted); display:flex; gap:16px;}
+.radar-legend .sw{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px;}
+.panel-x{border:1px solid var(--hair2); background:var(--panel2); padding:13px 14px; margin-top:14px; font-size:13.5px; color:var(--muted); line-height:2;}
+.panel-x .ttl{color:var(--bone); font-size:14px; letter-spacing:.2em; margin-bottom:4px;}
+.panel-x .v{float:right;}
+.bifa-intro{font-size:12.5px; color:var(--faint); margin-bottom:12px; line-height:1.9;}
+.bifa-item{border-left:2px solid var(--hair); padding:8px 12px; margin-bottom:10px;}
+.bifa-item.t吉{border-left-color:var(--jade);} .bifa-item.t凶{border-left-color:var(--cinnabar);}
+.bifa-item .nm{font-size:14.5px; color:var(--bone); letter-spacing:.1em;}
+.bifa-item .vs{font-size:12.5px; color:var(--gold-dim); margin-left:8px;}
+.bifa-item .nt{font-size:13px; color:var(--muted); line-height:1.85; margin-top:2px;}
 #result{display:none;}
 footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); letter-spacing:.15em;}
 @media (prefers-reduced-motion:no-preference){
@@ -230,7 +247,29 @@ footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); l
       </select>
     </label>
   </div>
+  <div class="row">
+    <label class="f">生年（選填：啟用年命行年，雷達圖對照個人化前後）
+      <input type="number" id="by" placeholder="西元年，例 1990" min="1900" max="2030">
+    </label>
+    <label class="f">性別（行年起法：男起寅順行、女起申逆行）
+      <select id="gender"><option>男</option><option>女</option></select>
+    </label>
+  </div>
   <label class="toggle"><input type="checkbox" id="lateZi" checked><span class="tk"></span>夜子時（23:00 起）換日</label>
+  <label class="toggle"><input type="checkbox" id="tst" checked><span class="tk"></span>真太陽時定時辰（經度差＋均時差，修正量透明顯示）</label>
+  <div class="row" id="lonrow">
+    <label class="f">地理經度 °E（預設為裝置時區中央經線，請改為實際所在經度）
+      <input type="number" id="lon" step="0.1">
+    </label>
+  </div>
+  <details class="adv">
+    <summary>進階覆寫（極接近中氣或換日臨界時，以精密曆書為最終權威）</summary>
+    <div class="advgrid">
+      <label class="f">月將<select id="ovYj"></select></label>
+      <label class="f">占時<select id="ovZs"></select></label>
+      <label class="f">日干支<select id="ovDay"></select></label>
+    </div>
+  </details>
   <button class="go" id="run">起課</button>
 </section>
 
@@ -259,15 +298,23 @@ footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); l
 
   <section class="card">
     <h2>量化診斷</h2>
+    <div id="radarbox"></div>
     <div class="score-grid" id="scoregrid"></div>
     <details open style="margin-top:18px;">
       <summary>結構分</summary>
       <div class="modelnote"><div class="struct-list" id="structlist"></div></div>
     </details>
+    <div id="extrapanels"></div>
     <div class="verdict" id="verdict"></div>
     <div class="epist">
       分數為<b style="color:var(--muted)">序數性診斷指標，不是機率</b>。它表示在本模型計分規則下，吉凶徵象的相對多寡且逐項可回溯；不表示應驗的可能性。分項明細比總分誠實——不同意結論者，應指認哪一個分項算錯，或哪一條權重理由不成立。
     </div>
+  </section>
+
+  <section class="card">
+    <h2>畢法賦格局</h2>
+    <div class="bifa-intro">依《畢法賦》原文編碼之高把握規則子集（觸發條件剛性者），僅作診斷提示、<b>不計入總分</b>（避免與結構分重複計量）。</div>
+    <div id="bifalist"></div>
   </section>
 
   <details style="margin-top:18px;" class="card" >
@@ -281,7 +328,15 @@ footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); l
       <div class="term"><b>計分</b>每傳四分項：時令（旺+2 相+1 休0 囚−1 死−2）、坐地（受生+1 比+0.5 剋地0 受剋−1 脫−0.5）、天將（基礎極性×生剋修正：吉將剋神力半、凶將受制力半）、干繫（依事類極性表）。旬空之傳小計×0.4。</div>
       <div class="term"><b>合成</b>三傳加權 0.45／0.20／0.35（發端與歸結重、過程輕，發端又略重於歸結），另加結構分：遞生+1.5、遞剋−1.5、末傳生日干+1、剋日干−1、三合+1。等級切點對稱於 ±1、±3、±6。</div>
       <div class="term"><b>百分位</b>將同事類下全部 17,280 個可能課式（12 月將 × 2 對應月建 × 12 占時 × 60 日）逐一計分，回報本課總分在此全集中的位置。這是模型內的真實統計量，不是現實應驗機率——應驗機率需要「課式×事後結果」的標註資料，該資料不存在，任何宣稱都是偽精確。</div>
-      <div class="term"><b>已知限制</b>太陽黃經為低階近似，極接近中氣交接時可能差一將（屆時介面提示）；權重是有理由的設計而非被證明的真理；本模型驗證的是規則自洽，不是占驗準確。</div>
+      <div class="term"><b>真太陽時</b>預設啟用。傳統定時辰本於日晷，故以鐘錶時間加經度差（每度 4 分）與均時差（Meeus 視赤經法）校正後定時辰與換日；修正量逐項顯示。經度預設取裝置時區中央經線，僅為預設值——時區很寬（新疆與台灣同用 UTC+8），請填實際經度。太陽黃經（定月將）依實際物理時刻，不受此開關影響。</div>
+      <div class="term"><b>黃經精度</b>Meeus 視黃經（高階中心差＋章動＋光行差），約 ±0.001°（合 ±1.5 分鐘）；警示閾值 ±0.05°。臨界時刻以進階覆寫鎖定月將／日干支為最終權威。</div>
+      <div class="term"><b>刑衝破害合</b>計於三傳兩兩之間及初傳對日支：六合 +0.5、相刑 −0.5、相衝 −0.75、相破 −0.25、相害 −0.5，逐對列出。</div>
+      <div class="term"><b>祿馬德</b>日祿臨傳 +0.75；驛馬臨傳 +0.5（行人類 +1）；干德（陽干自處、陰干從合，落於寄宮）臨傳 +0.5；支德（支前五位）臨傳 +0.25；日德日（甲寅丙辰戊辰庚辰壬戌）+0.5。</div>
+      <div class="term"><b>空亡細分</b>取代一律 ×0.4：旺相之空 ×0.6、休氣之空 ×0.4、囚死真空 ×0.25；傳中或日支干上有衝動空神者回升 ×0.8（衝空欲實）。</div>
+      <div class="term"><b>類神</b>依事類標定天將類神與爻神類神（求財→青龍與財爻、官祿→貴人與官爻、婚姻→天后與妻財、疾病→白虎與鬼爻（極性逆）、詞訟→朱雀與官鬼（極性逆）、行人→驛馬），以同一套四分項計其狀態，×0.3 併入總分並單列。</div>
+      <div class="term"><b>年命行年</b>本命依生年支；行年男一歲起寅順行、女一歲起申逆行，以虛歲計（不辨立春與生日，屬近似）。本命與行年上神狀態均值 ×0.25 併入總分，但不入百分位（百分位為非個人化全集）。雷達圖同時繪出含／不含年命兩多邊形以資對照。</div>
+      <div class="term"><b>畢法賦</b>依原文編碼三十餘條觸發條件剛性的法則（引從、首尾、祿馬、三奇、魁度天門、墓虎、丁馬……），僅作診斷面板不計分，每條附原文句。條件模糊或需未實作神煞（月厭、太歲等）者不收，寧缺毋錯；規則表可持續擴充。</div>
+      <div class="term"><b>已知限制</b>權重與擬值（含刑衝破害合、祿馬德、類神 ×0.3、年命 ×0.25）是有明文理由的設計而非被證明的真理；虛歲與本命支不辨立春為近似；畢法僅收高把握子集；本模型驗證的是規則自洽，不是占驗準確。</div>
     </div>
   </details>
 </div>
@@ -291,72 +346,83 @@ footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); l
 
 <script>
 /* ============================================================
-   大六壬可審計運算引擎
-   模型原則：內在自洽、資訊最大利用、任意性最小。
-   所有參數選擇皆有明文理由，見網頁「模型說明」。
+   大六壬可審計運算引擎 v2
+   新增：Meeus 級太陽視黃經與均時差、真太陽時定時辰、
+   刑衝破害合、祿馬德、空亡細分、類神、年命行年、畢法賦規則。
    ============================================================ */
 
 const BR = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 const ST = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
 const EL_NAME = ['木','火','土','金','水'];
-// 五行索引：木0 火1 土2 金3 水4；生 = +1，剋 = +2 (mod 5)
-const BR_EL = [4,2,0,0,2,1,1,2,3,3,2,4]; // 子丑寅卯辰巳午未申酉戌亥
+const BR_EL = [4,2,0,0,2,1,1,2,3,3,2,4];
 const ST_EL = [0,0,1,1,2,2,3,3,4,4];
-const sheng = (a,b) => (a+1)%5 === b;   // a 生 b
-const ke    = (a,b) => (a+2)%5 === b;   // a 剋 b
+const sheng = (a,b) => (a+1)%5 === b;
+const ke    = (a,b) => (a+2)%5 === b;
 
-// 日干寄宮（十干寄宮通行方案：干祿前後推移，生成規則單一）
 const JIGONG = {0:2, 1:4, 2:5, 3:7, 4:5, 5:7, 6:8, 7:10, 8:11, 9:1};
-// 地盤各宮所寄之干（涉害數剋時本氣＋寄干一併計入）
 const GONG_STEMS = {2:[0], 4:[1], 5:[2,4], 7:[3,5], 8:[6], 10:[7], 11:[8], 1:[9]};
-
-// 月將名
 const YJ_NAME = ['神后','大吉','功曹','太衝','天罡','太乙','勝光','小吉','傳送','從魁','河魁','登明'];
 
-// 十二天將
 const JIANG = ['貴人','螣蛇','朱雀','六合','勾陳','青龍','天空','白虎','太常','玄武','太陰','天后'];
 const JIANG_EL   = [2,1,1,0,2,0,2,3,2,4,3,4];
 const JIANG_BASE = [1.5,-1,-1,1,-1,1.5,-0.3,-1.5,1,-1.2,0.3,0.8];
-
-// 晝夜貴人（甲戊庚牛羊訣；占時卯至申用晝貴）
-const GUI_DAY   = [1,0,11,11,1,0,1,6,3,3];  // 甲乙丙丁戊己庚辛壬癸 之晝貴
+const GUI_DAY   = [1,0,11,11,1,0,1,6,3,3];
 const GUI_NIGHT = [7,8,9,9,7,8,7,2,5,5];
 
-// 刑（伏吟用）：子卯互刑、寅巳申、丑戌未、辰午酉亥自刑
 const XING = {0:3,3:0, 2:5,5:8,8:2, 1:10,10:7,7:1, 4:4,6:6,9:9,11:11};
-// 三合局（順序：長生-旺-墓）
 const SANHE = [[8,0,4],[2,6,10],[5,9,1],[11,3,7]];
-// 驛馬
 const YIMA = b => ({0:2,4:2,8:2, 2:8,6:8,10:8, 5:11,9:11,1:11, 11:5,3:5,7:5})[b];
-// 五合
 const WUHE = s => (s+5)%10;
+const LU = {0:2, 1:3, 2:5, 3:6, 4:5, 5:6, 6:8, 7:9, 8:11, 9:0};      // 日祿
+const GANDE_ST = [0,6,2,8,4,0,6,2,8,4];                                 // 干德（陽自處、陰從合）
+const ZHIDE = b => (b+5)%12;                                            // 支德
+const RIDE_DAYS = [[0,2],[2,4],[4,4],[6,4],[8,10]];                     // 日德格：甲寅丙辰戊辰庚辰壬戌
+// 五行寄生（依《畢法》文例：木亥火寅土申金巳水申；墓：木未火戌土辰金丑水辰）
+const CHANGSHENG_EL = {0:11, 1:2, 2:8, 3:5, 4:8};
+const MU_EL = {0:7, 1:10, 2:4, 3:1, 4:4};
+const liuhe = (a,b) => (a+b)%12 === 1;
+const chong = (a,b) => (a-b+12)%12 === 6;
+const PO = {0:9,9:0,3:6,6:3,4:1,1:4,7:10,10:7,2:11,11:2,5:8,8:5};
+const hai = (a,b) => (a+b)%12 === 7;
+const xingPair = (a,b) => a===b ? XING[a]===a : (XING[a]===b || XING[b]===a);
 
-/* ---------- 曆法 ---------- */
+/* ---------- 曆法與天文 ---------- */
 function jdn(y,m,d){
   const a=Math.floor((14-m)/12), y2=y+4800-a, m2=m+12*a-3;
   return d+Math.floor((153*m2+2)/5)+365*y2+Math.floor(y2/4)-Math.floor(y2/100)+Math.floor(y2/400)-32045;
 }
-// 太陽黃經（低階近似，誤差約 0.01°；僅在極接近中氣交接的時刻可能差一將，屆時介面提示）
-function solarLon(dateUTCms){
+const D2R = Math.PI/180;
+/* Meeus《Astronomical Algorithms》Ch.25：太陽視黃經（含高階中心差、章動、光行差），精度約 ±0.001° */
+function solarApparent(dateUTCms){
   const jd = dateUTCms/86400000 + 2440587.5;
-  const n = jd - 2451545.0;
-  const L = (280.460 + 0.9856474*n) % 360;
-  const g = ((357.528 + 0.9856003*n) % 360) * Math.PI/180;
-  let lam = L + 1.915*Math.sin(g) + 0.020*Math.sin(2*g);
-  return ((lam % 360)+360)%360;
+  const T = (jd - 2451545.0)/36525;
+  const L0 = (280.46646 + 36000.76983*T + 0.0003032*T*T) % 360;
+  const M  = (357.52911 + 35999.05029*T - 0.0001537*T*T) % 360;
+  const Mr = M*D2R;
+  const C = (1.914602 - 0.004817*T - 0.000014*T*T)*Math.sin(Mr)
+          + (0.019993 - 0.000101*T)*Math.sin(2*Mr)
+          + 0.000289*Math.sin(3*Mr);
+  const trueLon = L0 + C;
+  const omega = (125.04 - 1934.136*T)*D2R;
+  const lam = trueLon - 0.00569 - 0.00478*Math.sin(omega);
+  const eps = (23.4392911 - 0.0130042*T)*D2R + 0.00256*D2R*Math.cos(omega);
+  // 均時差（Meeus 28.3 之簡式）：E = L0 − 0.0057183 − α(視) ，單位度，×4 為分鐘
+  const lamR = lam*D2R;
+  let alpha = Math.atan2(Math.cos(eps)*Math.sin(lamR), Math.cos(lamR))/D2R;
+  alpha = ((alpha%360)+360)%360;
+  let E = L0 - 0.0057183 - alpha;
+  E = ((E+180)%360+360)%360-180;   // 正規化至 ±180
+  return {lam: ((lam%360)+360)%360, eotMin: E*4};
 }
-// 月將：太陽過宮（中氣）定將。雨水(330°)後亥將，每 30° 遞退一支
 function monthGeneral(lam){
   const sector = Math.floor((((lam - 330) % 360)+360)%360 / 30);
   return (11 - sector + 12) % 12;
 }
-// 月支（旺相休囚死用，依節氣：立春 315° 起寅月）
 function monthBranch(lam){
   const sector = Math.floor((((lam - 315) % 360)+360)%360 / 30);
   return (2 + sector) % 12;
 }
-// 日干支。lateZi=true 時 23:00 起換日
-function dayGanzhi(y,m,d,hour,lateZi){
+function dayGanzhiYMDH(y,m,d,hour,lateZi){
   let J = jdn(y,m,d);
   if(lateZi && hour >= 23) J += 1;
   const idx = ((J + 49) % 60 + 60) % 60;
@@ -365,16 +431,13 @@ function dayGanzhi(y,m,d,hour,lateZi){
 const hourBranch = h => Math.floor(((h+1)%24)/2);
 
 /* ---------- 排盤 ---------- */
-// 天盤：月將加占時。tianPan[地盤宮] = 天盤神
 function buildTianPan(yj, zs){
   const tp = [];
   for(let g=0; g<12; g++) tp[g] = ((yj + g - zs) % 12 + 12) % 12;
   return tp;
 }
-// 天盤神所臨之地盤宮
 const groundOf = (tp, sky) => tp.indexOf(sky);
 
-// 四課
 function fourCourses(dayStem, dayBranch, tp){
   const jg = JIGONG[dayStem];
   const c1 = {up: tp[jg], down: jg, downEl: ST_EL[dayStem], downName: ST[dayStem], label:'一課(干)'};
@@ -385,9 +448,7 @@ function fourCourses(dayStem, dayBranch, tp){
   return [c1,c2,c3,c4];
 }
 
-/* ---------- 涉害：逐宮數剋 ----------
-   候選神自所臨地盤宮起，順行至本家前一宮止（含出發宮、不含本家），
-   逐宮累計「地盤本氣＋寄宮干」對候選神之剋。受剋最多者發用。 */
+/* ---------- 涉害逐宮數剋 ---------- */
 function shehaiCount(tp, cand){
   const el = BR_EL[cand];
   const start = groundOf(tp, cand);
@@ -405,7 +466,7 @@ function shehaiCount(tp, cand){
   return {cand, start, total, detail};
 }
 
-/* ---------- 取三傳（九法決策樹） ---------- */
+/* ---------- 取三傳（九法決策樹，同 v1） ---------- */
 function threeTransmissions(ctx){
   const {tp, dayStem, dayBranch, yj, zs} = ctx;
   const jg = JIGONG[dayStem];
@@ -414,17 +475,15 @@ function threeTransmissions(ctx){
   const uniq = [];
   const seen = new Set();
   for(const c of courses){
-    const k = c.up+'/'+c.down+'/'+(c.label[3]==='干'&&c.label[2]==='('?'g':'b');
     const k2 = c.up+'_'+c.down;
     if(!seen.has(k2)){ seen.add(k2); uniq.push(c); }
   }
   log.push(`四課去重後 ${uniq.length} 課。`);
   const chainMidEnd = first => [first, tp[first], tp[tp[first]]];
-  const stemParity = dayStem % 2;         // 0 陽
+  const stemParity = dayStem % 2;
   const isYang = stemParity === 0;
   let shehai = null;
 
-  /* --- 伏吟 --- */
   if(yj === zs){
     log.push('月將與占時同位，天地盤重合：伏吟課。');
     let first;
@@ -445,12 +504,10 @@ function threeTransmissions(ctx){
     return {chuan:[first,mid,last], method:'伏吟', courses, log, shehai};
   }
 
-  /* --- 返吟 --- */
   if((yj+6)%12 === zs){
     log.push('月將與占時相衝，天地盤對衝：返吟課。');
     const res = zeikeFlow(uniq, courses, tp, dayStem, log);
     if(res){
-      Object.assign(ctx, {});
       shehai = res.shehai || null;
       const first = res.first;
       log.push(`中末依天盤遞取：${BR[tp[first]]}、${BR[tp[tp[first]]]}（返吟盤面即互衝循環）。`);
@@ -462,7 +519,6 @@ function threeTransmissions(ctx){
     return {chuan:[first,mid,last], method:'返吟(無依)', courses, log, shehai};
   }
 
-  /* --- 八專 --- */
   if(jg === dayBranch){
     log.push('干支同位（干寄宮即日支）：八專日，四課僅二課。');
     const zei = uniq.filter(c => ke(c.downEl, c.upEl));
@@ -482,14 +538,12 @@ function threeTransmissions(ctx){
     return {chuan:[first, courses[0].up, courses[0].up], method:'八專', courses, log, shehai};
   }
 
-  /* --- 賊剋 → 比用 → 涉害 --- */
   const res = zeikeFlow(uniq, courses, tp, dayStem, log);
   if(res){
     shehai = res.shehai || null;
     return {chuan: chainMidEnd(res.first), method: res.name, courses, log, shehai};
   }
 
-  /* --- 遙剋 --- */
   const dEl = ST_EL[dayStem];
   const remote = uniq.slice(1);
   let cands = [...new Set(remote.filter(c => ke(c.upEl, dEl)).map(c=>c.up))];
@@ -504,14 +558,11 @@ function threeTransmissions(ctx){
     if(pick.length > 1){
       const bi = pick.filter(b => b%2 === stemParity);
       if(bi.length === 1){ pick = bi; log.push(`多候選，取與日干俱${isYang?'陽':'陰'}者：${BR[bi[0]]}。`); }
-      else {
-        pick = mengZhongTiebreak(pick, tp, courses, isYang, log);
-      }
+      else pick = mengZhongTiebreak(pick, tp, courses, isYang, log);
     }
     return {chuan: chainMidEnd(pick[0]), method:rname, courses, log, shehai};
   }
 
-  /* --- 昴星 / 別責 --- */
   if(uniq.length === 4){
     log.push('四課全備而無剋無遙：昴星法。');
     let first, mid, last;
@@ -537,7 +588,6 @@ function threeTransmissions(ctx){
   return {chuan:[first, courses[0].up, courses[0].up], method:'別責', courses, log, shehai};
 }
 
-/* 賊剋 → 比用 → 涉害 共用流程。無剋回傳 null */
 function zeikeFlow(uniq, courses, tp, dayStem, log){
   const zei = uniq.filter(c => ke(c.downEl, c.upEl));
   const pool = zei.length ? zei : uniq.filter(c => ke(c.upEl, c.downEl));
@@ -549,7 +599,6 @@ function zeikeFlow(uniq, courses, tp, dayStem, log){
     log.push(`候選唯一，${BR[cands[0]]} 發用。課體：${isZei?'重審':'元首'}。`);
     return {first: cands[0], name: isZei?'賊剋(重審)':'賊剋(元首)'};
   }
-  // 比用
   const p = dayStem % 2;
   const bi = cands.filter(b => b%2 === p);
   if(bi.length === 1){
@@ -577,7 +626,6 @@ function zeikeFlow(uniq, courses, tp, dayStem, log){
   return {first: pick[0], name: pick.name || '涉害', shehai};
 }
 
-/* 深淺相等之遞補鏈：臨孟（見機）→ 臨仲（察微）→ 剛日干上柔日支上（綴瑕） */
 function mengZhongTiebreak(cands, tp, courses, isYang, log, named){
   const MENG = [2,5,8,11], ZHONG = [0,3,6,9];
   const onSet = set => cands.filter(b => set.includes(groundOf(tp,b)));
@@ -597,7 +645,7 @@ function tianJiangPan(dayStem, zs, tp){
   const gui = isDay ? GUI_DAY[dayStem] : GUI_NIGHT[dayStem];
   const gPos = groundOf(tp, gui);
   const forward = [11,0,1,2,3,4].includes(gPos);
-  const map = {}; // 天盤神 → 將索引
+  const map = {};
   for(let k=0;k<12;k++){
     const skyB = ((gui + (forward? k : -k)) % 12 + 12) % 12;
     map[skyB] = k;
@@ -614,10 +662,10 @@ function xunInfo(dayIdx){
     const off = ((b - sb)%12+12)%12;
     return off < 10 ? off : null;
   };
-  return {kong, dunGan};
+  return {kong, dunGan, xunShou: sb, xunWei: (sb+9)%12};
 }
 
-/* ---------- 量化計分 ---------- */
+/* ---------- 計分 ---------- */
 const REL_NAME = {shengWo:'生我(父母)', bihe:'比和(兄弟)', woSheng:'我生(子孫)', woKe:'我剋(妻財)', keWo:'剋我(官鬼)'};
 const EVENT_TABLES = {
   '通占': {shengWo:1, bihe:0.5, woSheng:-0.5, woKe:0, keWo:-1},
@@ -628,7 +676,17 @@ const EVENT_TABLES = {
   '詞訟': {shengWo:1, bihe:0.5, woSheng:-0.5, woKe:1, keWo:-1.5},
   '行人': {shengWo:1, bihe:0.5, woSheng:-0.5, woKe:0, keWo:-1},
 };
+// 類神：[天將索引, 爻性, 極性符號]；疾病詞訟看的是病神訟神，其旺為凶
+const LEISHEN_DEF = {
+  '求財': {jiang:5, yao:'woKe', sign:1, name:'青龍與財爻'},
+  '官祿': {jiang:0, yao:'keWo', sign:1, name:'貴人與官爻'},
+  '婚姻': {jiang:11, yao:'woKe', sign:1, name:'天后與妻財'},
+  '疾病': {jiang:7, yao:'keWo', sign:-1, name:'白虎與鬼爻'},
+  '詞訟': {jiang:2, yao:'keWo', sign:-1, name:'朱雀與官鬼'},
+  '行人': {jiang:null, yao:null, sign:1, name:'驛馬', yima:true},
+};
 const WEIGHTS = [0.45, 0.20, 0.35];
+const LEISHEN_W = 0.3, NIANMING_W = 0.25;
 
 function relToDay(el, dEl){
   if(el === dEl) return 'bihe';
@@ -644,12 +702,21 @@ function wangShuai(el, monEl){
   if(ke(el, monEl)) return {n:'囚', v:-1};
   return {n:'死', v:-2};
 }
+// 空亡細分：旺相×0.6、休×0.4、囚死×0.25；被衝（欲實）回升 0.8
+function kongMultiplier(b, ctx){
+  const ws = wangShuai(BR_EL[b], ctx.monEl);
+  const others = [...ctx.chuanSet, ctx.dayBranch, ctx.ganShang].filter(x=>x!==undefined);
+  const chongOpen = others.some(o => o!==b && chong(o,b));
+  if(chongOpen) return {m:0.8, n:'衝空欲實'};
+  if(ws.v>=1) return {m:0.6, n:'旺相之空'};
+  if(ws.v===0) return {m:0.4, n:'休氣之空'};
+  return {m:0.25, n:'囚死真空'};
+}
 
 function scoreChuan(b, ctx){
   const {tp, dayStem, monEl, jiangPan, eventTable, xun} = ctx;
   const el = BR_EL[b];
   const ws = wangShuai(el, monEl);
-  // 坐地
   const g = groundOf(tp, b);
   const gEl = BR_EL[g];
   let zd, zdn;
@@ -658,21 +725,22 @@ function scoreChuan(b, ctx){
   else if(ke(el,gEl)){zd=0; zdn='剋地盤';}
   else if(ke(gEl,el)){zd=-1; zdn='受地盤剋';}
   else               {zd=-0.5; zdn='脫氣於地盤';}
-  // 天將
   const jIdx = jiangPan.map[b];
   const jEl = JIANG_EL[jIdx];
   let base = JIANG_BASE[jIdx], jmul = 1, jnote = '';
   if(ke(jEl, el) && base > 0){ jmul = 0.5; jnote='(吉將剋神，力半)'; }
   if(ke(el, jEl) && base < 0){ jmul = 0.5; jnote='(凶將受制，力半)'; }
   const jv = +(base*jmul).toFixed(2);
-  // 干繫
   const rel = relToDay(el, ST_EL[dayStem]);
   const gx = eventTable[rel];
-  // 空亡
-  const kong = ctx.xun.kong.includes(b);
+  const kong = xun.kong.includes(b);
   let subtotal = ws.v + zd + jv + gx;
   const rawSub = subtotal;
-  if(kong) subtotal = +(subtotal*0.4).toFixed(2);
+  let kongInfo = null;
+  if(kong){
+    kongInfo = kongMultiplier(b, ctx);
+    subtotal = +(subtotal*kongInfo.m).toFixed(2);
+  }
   return {
     branch:b, el, dun: xun.dunGan(b),
     comps: {
@@ -681,62 +749,229 @@ function scoreChuan(b, ctx){
       天將: {v:jv, n:JIANG[jIdx]+jnote},
       干繫: {v:gx, n:REL_NAME[rel]},
     },
-    jiang: jIdx, kong, rawSub: +rawSub.toFixed(2), subtotal: +subtotal.toFixed(2),
+    jiang: jIdx, kong, kongInfo, rawSub: +rawSub.toFixed(2), subtotal: +subtotal.toFixed(2),
   };
 }
 
-function scoreAll(chuan, ctx){
-  const per = chuan.map(b => scoreChuan(b, ctx));
+/* 結構分：格局 + 刑衝破害合 + 祿馬德 */
+function structScore(chuan, ctx){
+  const items = [];
   const els = chuan.map(b => BR_EL[b]);
   const dEl = ST_EL[ctx.dayStem];
-  const struct = [];
-  if(sheng(els[0],els[1]) && sheng(els[1],els[2])) struct.push({n:'三傳遞生', v:1.5});
-  if(ke(els[0],els[1]) && ke(els[1],els[2]))       struct.push({n:'三傳遞剋', v:-1.5});
-  if(sheng(els[2], dEl)) struct.push({n:'末傳生日干', v:1});
-  if(ke(els[2], dEl))    struct.push({n:'末傳剋日干', v:-1});
-  const set = [...chuan].sort((a,b)=>a-b).join(',');
-  if(SANHE.some(t => [...t].sort((a,b)=>a-b).join(',')===set)) struct.push({n:'三傳成三合局', v:1});
+  if(sheng(els[0],els[1]) && sheng(els[1],els[2])) items.push({n:'三傳遞生', v:1.5});
+  if(ke(els[0],els[1]) && ke(els[1],els[2]))       items.push({n:'三傳遞剋', v:-1.5});
+  if(sheng(els[2], dEl)) items.push({n:'末傳生日干', v:1});
+  if(ke(els[2], dEl))    items.push({n:'末傳剋日干', v:-1});
+  const set = [...new Set(chuan)].sort((a,b)=>a-b).join(',');
+  if(SANHE.some(t => [...t].sort((a,b)=>a-b).join(',')===set)) items.push({n:'三傳成三合局', v:1});
+  // 刑衝破害合：三傳兩兩 + 初傳對日支
+  const pairs = [[chuan[0],chuan[1],'初中'],[chuan[1],chuan[2],'中末'],[chuan[0],chuan[2],'初末'],[chuan[0],ctx.dayBranch,'初傳對日支']];
+  const seenP = new Set();
+  for(const [a,b,lab] of pairs){
+    const key = lab+':'+Math.min(a,b)+'-'+Math.max(a,b);
+    if(seenP.has(key) || (a===b && !xingPair(a,b))) continue;
+    seenP.add(key);
+    if(a!==b && liuhe(a,b)) items.push({n:`${lab}六合(${BR[a]}${BR[b]})`, v:0.5});
+    if(xingPair(a,b))       items.push({n:`${lab}相刑(${BR[a]}${BR[b]})`, v:-0.5});
+    if(a!==b && chong(a,b)) items.push({n:`${lab}相衝(${BR[a]}${BR[b]})`, v:-0.75});
+    if(a!==b && PO[a]===b)  items.push({n:`${lab}相破(${BR[a]}${BR[b]})`, v:-0.25});
+    if(a!==b && hai(a,b))   items.push({n:`${lab}相害(${BR[a]}${BR[b]})`, v:-0.5});
+  }
+  // 祿馬德臨傳
+  const lu = LU[ctx.dayStem], ma = YIMA(ctx.dayBranch);
+  const gande = JIGONG[GANDE_ST[ctx.dayStem]], zhide = ZHIDE(ctx.dayBranch);
+  const inChuan = b => chuan.includes(b);
+  if(inChuan(lu)) items.push({n:`日祿(${BR[lu]})臨傳`, v:0.75});
+  if(inChuan(ma)) items.push({n:`驛馬(${BR[ma]})臨傳`, v: ctx.eventName==='行人'?1:0.5});
+  if(inChuan(gande)) items.push({n:`干德(${BR[gande]})臨傳`, v:0.5});
+  if(inChuan(zhide)) items.push({n:`支德(${BR[zhide]})臨傳`, v:0.25});
+  if(RIDE_DAYS.some(([s,b])=>s===ctx.dayStem&&b===ctx.dayBranch)) items.push({n:'日德日（甲寅丙辰戊辰庚辰壬戌）', v:0.5});
+  return items;
+}
+
+/* 類神標定與狀態分 */
+function leishenScore(ctx){
+  const def = LEISHEN_DEF[ctx.eventName];
+  if(!def) return null;
+  const spots = [];
+  if(def.yima){
+    spots.push({b: YIMA(ctx.dayBranch), why:'日支驛馬'});
+  } else {
+    // 天將類神：該將所乘之神
+    const jb = Object.keys(ctx.jiangPan.map).find(b => ctx.jiangPan.map[b]===def.jiang);
+    if(jb!==undefined) spots.push({b:+jb, why:JIANG[def.jiang]+'所乘'});
+    // 爻神類神：三傳中屬該爻者
+    const dEl = ST_EL[ctx.dayStem];
+    for(const b of new Set(ctx.chuanSet)){
+      if(relToDay(BR_EL[b], dEl)===def.yao){ spots.push({b, why:'傳中'+REL_NAME[def.yao].slice(3,5)+'爻'}); break; }
+    }
+  }
+  if(!spots.length) return null;
+  const scored = spots.map(s => {
+    const sc = scoreChuan(s.b, ctx);
+    const onChuan = ctx.chuanSet.includes(s.b);
+    return {...s, sc, onChuan};
+  });
+  const mean = scored.reduce((s,x)=>s+x.sc.subtotal,0)/scored.length;
+  const val = +(mean*def.sign).toFixed(2);
+  return {def, scored, mean:+mean.toFixed(2), val, contribution:+(val*LEISHEN_W).toFixed(2)};
+}
+
+/* 年命行年 */
+function nianmingScore(birthYear, gender, nowYear, ctx){
+  if(!birthYear) return null;
+  const benming = ((birthYear - 4)%12+12)%12;
+  const age = nowYear - birthYear + 1; // 虛歲（近似，不辨立春與生日）
+  const xingnian = gender==='女' ? ((8-(age-1))%12+12)%12 : (2+(age-1))%12;
+  const bmUp = ctx.tp[benming], xnUp = ctx.tp[xingnian];
+  const s1 = scoreChuan(bmUp, ctx), s2 = scoreChuan(xnUp, ctx);
+  const mean = +(((s1.subtotal+s2.subtotal)/2)).toFixed(2);
+  return {benming, xingnian, age, bmUp, xnUp, s1, s2, val:mean, contribution:+(mean*NIANMING_W).toFixed(2)};
+}
+
+function scoreAll(chuan, ctx){
+  ctx.chuanSet = chuan;
+  ctx.ganShang = ctx.tp[JIGONG[ctx.dayStem]];
+  const per = chuan.map(b => scoreChuan(b, ctx));
+  const struct = structScore(chuan, ctx);
   const structSum = +struct.reduce((s,x)=>s+x.v,0).toFixed(2);
   const weighted = +(per.reduce((s,p,i)=>s+p.subtotal*WEIGHTS[i],0)).toFixed(2);
-  const total = +(weighted + structSum).toFixed(2);
+  const leishen = leishenScore(ctx);
+  const nianming = ctx.birthYear ? nianmingScore(ctx.birthYear, ctx.gender, ctx.nowYear, ctx) : null;
+  const baseTotal = +(weighted + structSum + (leishen?leishen.contribution:0)).toFixed(2);
+  const total = +(baseTotal + (nianming?nianming.contribution:0)).toFixed(2);
   let grade;
-  if(total>6) grade='大吉'; else if(total>3) grade='吉'; else if(total>1) grade='小吉';
-  else if(total>=-1) grade='平'; else if(total>=-3) grade='小凶'; else if(total>=-6) grade='凶'; else grade='大凶';
-  // 歸因：取絕對值最大的分項
+  const gv = total;
+  if(gv>6) grade='大吉'; else if(gv>3) grade='吉'; else if(gv>1) grade='小吉';
+  else if(gv>=-1) grade='平'; else if(gv>=-3) grade='小凶'; else if(gv>=-6) grade='凶'; else grade='大凶';
   let best={v:0};
   const CH=['初傳','中傳','末傳'];
   per.forEach((p,i)=>{
     for(const [k,c] of Object.entries(p.comps)){
       if(Math.abs(c.v) > Math.abs(best.v)) best={v:c.v, chuan:CH[i], comp:k, note:c.n, branch:BR[p.branch]};
     }
-    if(p.kong && Math.abs(p.rawSub)>Math.abs(best.v)*0.8){} // 空亡另行提示
   });
   const dir = best.v>0?'吉象主要來自':'凶象主要來自';
   const attribution = best.chuan ? `${dir}${best.chuan}${best.branch}之${best.comp}（${best.note}，${best.v>0?'+':''}${best.v}）。` : '各項分值平淡，無顯著主導因素。';
-  const kongNote = per.some(p=>p.kong) ? per.map((p,i)=>p.kong?CH[i]+BR[p.branch]:null).filter(Boolean).join('、')+'落旬空，力減（×0.4），事象虛而不實。' : null;
-  return {per, struct, structSum, weighted, total, grade, attribution, kongNote};
+  const kongNote = per.some(p=>p.kong) ? per.map((p,i)=>p.kong?`${CH[i]}${BR[p.branch]}（${p.kongInfo.n}×${p.kongInfo.m}）`:null).filter(Boolean).join('、')+'落旬空。' : null;
+  return {per, struct, structSum, weighted, leishen, nianming, baseTotal, total, grade, attribution, kongNote};
+}
+
+/* ---------- 畢法賦規則引擎（依原文編碼之高把握子集） ---------- */
+function bifaRules(ctx){
+  const {courses, chuan, tp, dayStem, dayBranch, xun, jiangPan, method} = ctx;
+  const jg = JIGONG[dayStem];
+  const dEl = ST_EL[dayStem];
+  const g1 = courses[0].up, z1 = courses[2].up;
+  const rels = chuan.map(b => relToDay(BR_EL[b], dEl));
+  const duns = chuan.map(b => xun.dunGan(b));
+  const kongC = b => xun.kong.includes(b);
+  const hits = [];
+  const H = (id,name,verse,note,tone) => hits.push({id,name,verse,note,tone});
+
+  const next = b => (b+1)%12, prev = b => (b+11)%12;
+  if(chuan[0]===next(jg) && chuan[2]===prev(jg)) H(1,'前後引從','前後引從升遷吉','初傳居干前引、末傳居干後從：宜進職。','吉');
+  if(chuan[0]===next(dayBranch) && chuan[2]===prev(dayBranch)) H(1,'前後引從','前後引從升遷吉','初末引從地支：宜遷修家宅。','吉');
+  if((g1===xun.xunWei && z1===xun.xunShou)||(g1===xun.xunShou && z1===xun.xunWei)) H(2,'首尾相見','首尾相見始終宜','干支上見旬首旬尾（周而復始格）：占事不脫，所謀皆成，惟不宜釋散事。','吉');
+  const allUps = [...courses.map(c=>c.up), ...chuan];
+  if(allUps.every(b=>b%2===0)) H(5,'六陽','六陽數足須公用','課傳皆居陽位：利公幹不利私謀。','中');
+  if(allUps.every(b=>b%2===1)) H(6,'六陰','六陰相繼盡昏迷','課傳皆居陰位：利陰謀私幹，不利公聞。','中');
+  const lu = LU[dayStem];
+  if(g1===lu) H(kongC(lu)?7.1:7,'旺祿臨身','旺祿臨身徒妄作', kongC(lu)?'祿臨干上而落空：所得不償所費，反宜別謀。':'日祿臨干上：切不可捨此而別謀動作，宜守。','中');
+  if(z1===lu) H(8,'權攝不正','權攝不正祿臨支','日祿臨支上：凡占不自尊大，受屈折於他人。','凶');
+  if(rels.every(r=>r==='woKe')) H(14,'傳財太旺','傳財太旺反財虧','三傳皆財：財自貪生旺，取之防反費己財，待身旺月方可取。','凶');
+  const tkIdx = jiangPan.map[g1];
+  if(kongC(g1) && tkIdx===6) H(16,'空上乘空','空上乘空事莫追','干上神旬空又乘天空：指空話空，全無實象。','凶');
+  // 交車相合：干與支上神六合（以寄宮論干）且支與干上神六合
+  if(liuhe(jg, z1) && liuhe(dayBranch, g1)) H(21,'交車相合','交車相合交關利','日干與支上神、日支與干上神互作六合：主交關交易成合。','吉');
+  if(liuhe(jg, g1) && liuhe(dayBranch, z1)) H(22,'上下皆合','上下皆合兩心齊','干支各與其上神作六合：上下同心。','吉');
+  if(chuan[0]===z1 && chuan[2]===g1) H(23,'彼求我事','彼求我事支傳干','初傳自支上起、末傳歸干上：他人委託我謀事，吉凶皆成。','中');
+  if(chuan[0]===g1 && chuan[2]===z1) H(24,'我求彼事','我求彼事干傳支','初傳自干上起、末傳歸支上：俯求於人，宜低心下意。','凶');
+  if((dayStem===6||dayStem===7) && duns.includes(3)) H(25,'金日逢丁','金日逢丁凶禍動','庚辛日傳中見旬丁：必主凶動。','凶');
+  if((dayStem===8||dayStem===9) && duns.includes(3)) H(26,'水日逢丁','水日逢丁財動之','壬癸日傳中見旬丁：必主財動，遠方財物之象。','吉');
+  if(rels.every(r=>r==='woKe') && ke(BR_EL[g1], dEl) && chuan.some(b=>sheng(BR_EL[b], BR_EL[g1]))) H(27,'傳財化鬼','傳財化鬼財休覓','三傳皆財而生起干上之鬼：因取財致禍，此財如刀上蜜。','凶');
+  if(sheng(BR_EL[chuan[0]],BR_EL[chuan[1]]) && sheng(BR_EL[chuan[1]],BR_EL[chuan[2]]) && sheng(BR_EL[chuan[2]],dEl)) H(31,'三傳遞生','三傳遞生人舉薦','遞生而末傳生日干：必有人推薦，始終成就（傳空則舉薦無實）。','吉');
+  if(ke(BR_EL[chuan[0]],BR_EL[chuan[1]]) && ke(BR_EL[chuan[1]],BR_EL[chuan[2]]) && ke(BR_EL[chuan[2]],dEl)) H(32,'三傳互剋','三傳互剋眾人欺','遞剋而末剋日干：有人遞互相剋害，眾口相欺。','凶');
+  const cs = CHANGSHENG_EL[dEl], mu = MU_EL[dEl];
+  if(chuan[0]===cs && chuan[2]===mu) H(33,'有始無終','有始無終難變易','初傳日之長生、末傳日墓：初如花似錦，後無成合。','凶');
+  if(chuan[0]===mu && chuan[2]===cs) H(33.1,'先難後易','（難變易之反）','初傳日墓、末傳長生：自墓傳生，先迷後醒。','吉');
+  if(g1===YIMA(dayBranch) && z1===lu) H(41,'富貴祿馬','富貴干支逢祿馬','干上支馬、支上干祿（真富貴卦）：君子加官添俸；常人反主宅移身動。','吉');
+  const dset = duns.filter(d=>d!==null).sort().join(',');
+  if(duns.every(d=>d!==null) && (dset==='0,4,6'||dset==='1,2,3')) H(42,'三奇','尊崇傳內遇三奇','三傳遁干全遇甲戊庚或乙丙丁：可消災致貴。','吉');
+  const guiD = GUI_DAY[dayStem], guiN = GUI_NIGHT[dayStem];
+  if(chuan.every(b=>b===guiD||b===guiN)) H(44,'課傳俱貴','課傳俱貴轉無依','三傳皆晝夜貴人（遍地貴人）：貴多不貴，反無依倚。','凶');
+  if(chuan[0]===10 && groundOf(tp,10)===11) H(51,'魁度天門','魁度天門關隔定','戌加亥發用：占謀皆被阻隔。','凶');
+  if(tp[2]===4) H(52,'罡塞鬼戶','罡塞鬼戶任謀為','天罡（辰）臨鬼戶（寅）：眾鬼不得窺覷，任意謀為。','吉');
+  if(g1===mu && chuan[0]===g1) H(59,'華蓋覆日','華蓋覆日人昏晦','干墓臨干上發用：身位多昏晦，難以分訴。','凶');
+  if(g1===mu && jiangPan.map[g1]===7) H(61,'干乘墓虎','干乘墓虎無占病','干上墓神乘白虎：占病大凶，諸占昏迷。','凶');
+  if((z1===mu || z1===MU_EL[BR_EL[dayBranch]]) && jiangPan.map[z1]===7) H(62,'支乘墓虎','支乘墓虎有伏屍','支上墓神乘白虎：占宅有伏屍鬼禍之象。','凶');
+  if(kongC(chuan[1]) && kongC(chuan[2])) H(82,'不行傳','不行傳者考初時','中末皆空：只以初傳斷其吉凶。','中');
+  const setStr = [...new Set(chuan)].sort((a,b)=>a-b).join(',');
+  const sanheHit = SANHE.find(t=>[...t].sort((a,b)=>a-b).join(',')===setStr);
+  if(sanheHit){
+    const others=[g1,z1];
+    if(others.some(o=>chuan.some(c=>liuhe(o,c)))) H(83,'三六合','萬事喜忻三六合','三傳三合而干支上又見六合：凡謀皆遂，縱帶惡不成嗔（惟不宜解散事）。','吉');
+    if(others.some(o=>chuan.some(c=>xingPair(o,c)||chong(o,c)||hai(o,c)))) H(84,'合中犯殺','合中犯殺蜜中砒','三合中干支上見刑衝害：恩中變怨，笑裏有刀。','凶');
+  }
+  if(method==='伏吟' && (duns.includes(3)||chuan.includes(YIMA(dayBranch)))) H(89,'任信丁馬','任信丁馬須言動','伏吟而傳中見丁神或驛馬：靜而求動，不可言伏匿。','中');
+  if(method.startsWith('返吟') && chuan.some(kongC)) H(90,'來去俱空','來去俱空豈動宜','返吟而傳中見空：雖有動意，實不動也。','凶');
+  for(const b of new Set([...chuan, g1])){
+    if(ke(BR_EL[b],dEl) && jiangPan.map[b]===7){ H(91,'虎臨干鬼','虎臨干鬼凶速速','日鬼乘白虎（'+BR[b]+'）：凶禍速中又速（官人占赴任反為催官）。','凶'); break; }
+  }
+  for(const b of new Set([...chuan, g1])){
+    if(sheng(BR_EL[b],dEl) && jiangPan.map[b]===5){ H(92,'龍加生氣','龍加生氣吉遲遲','生日之神乘青龍（'+BR[b]+'）：徐徐而發福。','吉'); break; }
+  }
+  const relSet = [...new Set(rels)];
+  if(relSet.length===1){
+    const m6 = {woKe:'三傳皆財：防憂父母長上', shengWo:'三傳皆父母：防憂子息', woSheng:'三傳皆子孫：占官事不利', keWo:'三傳皆官鬼：憂己身兄弟', bihe:'三傳皆比肩：防耗財憂妻'};
+    H(95,'六爻現卦','六爻現卦防其剋',m6[relSet[0]]+'（干上有制化者輕）。','中');
+  }
+  return hits;
 }
 
 /* ---------- 主入口 ---------- */
 function computeCourse(input){
-  // input: {y,m,d,hour,minute, eventType, lateZi}
   const {y,m,d,hour,minute,eventType,lateZi} = input;
+  const useTST = input.trueSolar !== false;
+  const lon = (input.longitude===undefined||input.longitude===null||isNaN(input.longitude)) ? null : +input.longitude;
   const dt = new Date(y, m-1, d, hour, minute||0);
-  const lam = solarLon(dt.getTime());
-  const yj = monthGeneral(lam);
+  const ast = solarApparent(dt.getTime());
+  // 真太陽時修正（僅影響時辰與換日；黃經依實際物理時刻）
+  const meridian = -dt.getTimezoneOffset()/60*15;
+  const lonUse = lon===null ? meridian : lon;
+  const lonCorr = useTST ? (lonUse - meridian)*4 : 0;      // 分鐘
+  const eotCorr = useTST ? ast.eotMin : 0;
+  const totalCorr = lonCorr + eotCorr;
+  const dtCorr = new Date(dt.getTime() + Math.round(totalCorr*60000));
+  const cy=dtCorr.getFullYear(), cm=dtCorr.getMonth()+1, cd=dtCorr.getDate(), ch=dtCorr.getHours(), cmin=dtCorr.getMinutes();
+
+  const lam = ast.lam;
+  let yj = monthGeneral(lam);
   const monBr = monthBranch(lam);
-  const zs = hourBranch(hour);
-  const day = dayGanzhi(y,m,d,hour,lateZi);
+  let zs = hourBranch(ch);
+  let day = dayGanzhiYMDH(cy,cm,cd,ch,lateZi);
+  // 手動覆寫
+  const ov = input.overrides||{};
+  const ovNotes = [];
+  if(ov.yj!==undefined && ov.yj!==null){ yj = ov.yj; ovNotes.push('月將已手動覆寫為 '+BR[yj]); }
+  if(ov.zs!==undefined && ov.zs!==null){ zs = ov.zs; ovNotes.push('占時已手動覆寫為 '+BR[zs]); }
+  if(ov.dayIdx!==undefined && ov.dayIdx!==null){ day = {idx:ov.dayIdx, stem:ov.dayIdx%10, branch:ov.dayIdx%12}; ovNotes.push('日干支已手動覆寫為 '+ST[day.stem]+BR[day.branch]); }
+
   const tp = buildTianPan(yj, zs);
   const jiangPan = tianJiangPan(day.stem, zs, tp);
   const xun = xunInfo(day.idx);
   const tt = threeTransmissions({tp, dayStem:day.stem, dayBranch:day.branch, yj, zs});
-  const ctx = {tp, dayStem:day.stem, monEl:BR_EL[monBr], jiangPan, eventTable:EVENT_TABLES[eventType]||EVENT_TABLES['通占'], xun};
+  const ctx = {tp, dayStem:day.stem, dayBranch:day.branch, monEl:BR_EL[monBr], jiangPan,
+    eventTable:EVENT_TABLES[eventType]||EVENT_TABLES['通占'], eventName:eventType, xun,
+    birthYear: input.birthYear||null, gender: input.gender||'男', nowYear: y};
   const score = scoreAll(tt.chuan, ctx);
-  // 月將交接臨界提示
+  const bifa = bifaRules({courses:tt.courses, chuan:tt.chuan, tp, dayStem:day.stem, dayBranch:day.branch, xun, jiangPan, method:tt.method});
   const lamMod = ((lam - 330)%30 + 30)%30;
-  const nearBoundary = lamMod < 0.3 || lamMod > 29.7;
-  return {input, lam, yj, monBr, zs, day, tp, jiangPan, xun, tt, score, ctx, nearBoundary};
+  const nearBoundary = lamMod < 0.05 || lamMod > 29.95;
+  return {input, lam, yj, monBr, zs, day, tp, jiangPan, xun, tt, score, ctx, bifa, nearBoundary,
+    tst: {used:useTST, lonUse, meridian, lonCorr:+lonCorr.toFixed(1), eotCorr:+eotCorr.toFixed(1), totalCorr:+totalCorr.toFixed(1),
+      corrected: `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')} ${String(ch).padStart(2,'0')}:${String(cmin).padStart(2,'0')}`},
+    ovNotes};
 }
 
 
@@ -758,8 +993,8 @@ function refDistribution(eventType){
       for(let idx=0; idx<60; idx++){
         const ds = idx%10, db = idx%12;
         const tt = threeTransmissions({tp, dayStem:ds, dayBranch:db, yj, zs});
-        const ctx = {tp, dayStem:ds, monEl:BR_EL[monBr], jiangPan:tianJiangPan(ds, zs, tp), eventTable:table, xun:xunInfo(idx)};
-        totals.push(scoreAll(tt.chuan, ctx).total);
+        const ctx = {tp, dayStem:ds, dayBranch:db, monEl:BR_EL[monBr], jiangPan:tianJiangPan(ds, zs, tp), eventTable:table, eventName:eventType, xun:xunInfo(idx)};
+        totals.push(scoreAll(tt.chuan, ctx).baseTotal);
       }
     }
   }
@@ -778,6 +1013,37 @@ const CH = ['初傳','中傳','末傳'];
 // 式盤格位：外圈十二宮在 4x4 網格中的位置（row,col），傳統巳午未申居上
 const GRID = {5:[0,0],6:[0,1],7:[0,2],8:[0,3],4:[1,0],9:[1,3],3:[2,0],10:[2,3],2:[3,0],1:[3,1],0:[3,2],11:[3,3]};
 
+const RADAR_AXES = ['時令','坐地','天將','干繫','結構','類神','年命'];
+function radarVals(score, withNM){
+  const comps = ['時令','坐地','天將','干繫'].map(k =>
+    score.per.reduce((s,p,i)=>s+p.comps[k].v*WEIGHTS[i],0));
+  return [...comps, score.structSum, score.leishen?score.leishen.contribution:0,
+    (withNM && score.nianming)? score.nianming.contribution : 0];
+}
+function buildRadar(score){
+  const W=340, H=310, cx=W/2, cy=H/2+4, R=108, n=RADAR_AXES.length;
+  const pt=(i,v)=>{ const a=-Math.PI/2 + i*2*Math.PI/n;
+    const r=R*(Math.max(-2.5,Math.min(2.5,v))+2.5)/5;
+    return [cx+r*Math.cos(a), cy+r*Math.sin(a)]; };
+  const ring=v=>RADAR_AXES.map((_,i)=>pt(i,v).map(x=>x.toFixed(1)).join(',')).join(' ');
+  const poly=(vals,cls)=>`<polygon points="${vals.map((v,i)=>pt(i,v).map(x=>x.toFixed(1)).join(',')).join(' ')}" class="${cls}"/>`;
+  const axes=RADAR_AXES.map((lab,i)=>{ const [x,y]=pt(i,2.5); const [lx,ly]=[cx+(x-cx)*1.17, cy+(y-cy)*1.17];
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#3a2d1e"/>`+
+      `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#a18a67">${lab}</text>`; });
+  const base = radarVals(score,false), over = score.nianming? radarVals(score,true):null;
+  let legend = `<div class="radar-legend"><span><span class="sw" style="background:#d3a75c88"></span>本課六要素</span>`;
+  if(over) legend += `<span><span class="sw" style="background:#86ad9288"></span>含年命個人項</span>`;
+  legend += '</div>';
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="分項雷達圖">
+    <polygon points="${ring(2.5)}" fill="none" stroke="#3a2d1e"/>
+    <polygon points="${ring(1.25)}" fill="none" stroke="#3a2d1e"/>
+    <polygon points="${ring(0)}" fill="none" stroke="#a5824a" stroke-dasharray="3 3" opacity="0.6"/>
+    <polygon points="${ring(-1.25)}" fill="none" stroke="#3a2d1e"/>
+    ${axes.join('')}
+    ${over? poly(over,'') .replace('class=""','fill="#86ad9226" stroke="#86ad92" stroke-width="1.5"') : ''}
+    ${poly(base,'').replace('class=""','fill="#d3a75c22" stroke="#d3a75c" stroke-width="1.5"')}
+  </svg>` + legend + '<div class="bifa-intro">虛線環為零位；軸值截於 ±2.5。時令／坐地／天將／干繫為三傳加權合成。</div>';
+}
 function fmtV(v){ return (v>0?'+':'')+(+v.toFixed(2)); }
 function vCls(v){ return v>0?'pos-v':(v<0?'neg-v':'zero-v'); }
 
@@ -785,6 +1051,12 @@ function init(){
   const now = new Date();
   now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
   $('dt').value = now.toISOString().slice(0,16);
+  $('lon').value = -new Date().getTimezoneOffset()/60*15;
+  const auto = '<option value="">自動</option>';
+  $('ovYj').innerHTML = auto + BR.map((b,i)=>`<option value="${i}">${b}將</option>`).join('');
+  $('ovZs').innerHTML = auto + BR.map((b,i)=>`<option value="${i}">${b}時</option>`).join('');
+  $('ovDay').innerHTML = auto + Array.from({length:60},(_,i)=>`<option value="${i}">${ST[i%10]}${BR[i%12]}</option>`).join('');
+  $('tst').addEventListener('change', ()=>{ $('lonrow').style.display = $('tst').checked?'':'none'; });
   $('run').addEventListener('click', run);
   run();
 }
@@ -795,7 +1067,11 @@ function run(){
   const [ds, ts] = v.split('T');
   const [y,m,d] = ds.split('-').map(Number);
   const [hh,mm] = ts.split(':').map(Number);
-  const r = computeCourse({y,m,d,hour:hh,minute:mm,eventType:$('event').value,lateZi:$('lateZi').checked});
+  const ovv = id => $(id).value===''? null : +$(id).value;
+  const r = computeCourse({y,m,d,hour:hh,minute:mm,eventType:$('event').value,lateZi:$('lateZi').checked,
+    trueSolar: $('tst').checked, longitude: parseFloat($('lon').value),
+    birthYear: $('by').value? +$('by').value : null, gender: $('gender').value,
+    overrides: {yj: ovv('ovYj'), zs: ovv('ovZs'), dayIdx: ovv('ovDay')}});
   render(r);
 }
 
@@ -805,8 +1081,13 @@ function render(r){
   res.classList.remove('show'); void res.offsetWidth; res.classList.add('show');
 
   // 警示
-  $('warnbox').innerHTML = r.nearBoundary
-    ? '<div class="warn">太陽黃經極接近中氣交接（本引擎為近似計算），月將可能差一位，此刻起課請以精確曆書覆核。</div>' : '';
+  let wb = r.nearBoundary
+    ? '<div class="warn">太陽黃經極接近中氣交接（±0.05° 內），月將可能差一位，請以精密曆書覆核或用進階覆寫鎖定。</div>' : '';
+  if(r.tst.used){
+    wb += `<div class="tstline">真太陽時：鐘錶 ${r.tst.totalCorr>=0?'+':''}${r.tst.totalCorr} 分 → <b>${r.tst.corrected.slice(5)}</b>（經度差 ${r.tst.lonCorr>=0?'+':''}${r.tst.lonCorr}、均時差 ${r.tst.eotCorr>=0?'+':''}${r.tst.eotCorr}；經度 ${r.tst.lonUse}°E 對中央經線 ${r.tst.meridian}°E）</div>`;
+  }
+  if(r.ovNotes.length) wb += `<div class="warn">${r.ovNotes.join('；')}。</div>`;
+  $('warnbox').innerHTML = wb;
 
   // 式盤
   const cells = [];
@@ -893,14 +1174,33 @@ function render(r){
     : '<div>無成立之結構格局<span class="v zero-v">0</span></div>')
     + `<div style="border-top:1px dashed var(--hair2); margin-top:6px; padding-top:6px;">三傳加權小計<span class="v ${vCls(r.score.weighted)}">${fmtV(r.score.weighted)}</span></div>`;
 
+  $('radarbox').innerHTML = buildRadar(r.score);
+  let xp = '';
+  if(r.score.leishen){
+    const L = r.score.leishen;
+    xp += `<div class="panel-x"><div class="ttl">類神：${L.def.name}</div>` +
+      L.scored.map(s=>`<div>${s.why} <b class="el-${BR_EL[s.b]}">${BR[s.b]}</b>（臨地盤${BR[groundOf(r.tp,s.b)]}${s.onChuan?'、在傳':''}）狀態分<span class="v ${vCls(s.sc.subtotal)}">${fmtV(s.sc.subtotal)}</span></div>`).join('') +
+      `<div style="border-top:1px dashed var(--hair2); margin-top:6px; padding-top:6px;">極性${L.def.sign>0?'順':'逆'}（${L.def.sign>0?'類神旺為吉':'病訟之神旺為凶'}）× 權重 ${LEISHEN_W}<span class="v ${vCls(L.contribution)}">${fmtV(L.contribution)}</span></div></div>`;
+  }
+  if(r.score.nianming){
+    const N = r.score.nianming;
+    xp += `<div class="panel-x"><div class="ttl">年命行年（虛歲 ${N.age}）</div>` +
+      `<div>本命 ${BR[N.benming]} 上神 <b class="el-${BR_EL[N.bmUp]}">${BR[N.bmUp]}</b> 狀態分<span class="v ${vCls(N.s1.subtotal)}">${fmtV(N.s1.subtotal)}</span></div>` +
+      `<div>行年 ${BR[N.xingnian]} 上神 <b class="el-${BR_EL[N.xnUp]}">${BR[N.xnUp]}</b> 狀態分<span class="v ${vCls(N.s2.subtotal)}">${fmtV(N.s2.subtotal)}</span></div>` +
+      `<div style="border-top:1px dashed var(--hair2); margin-top:6px; padding-top:6px;">均值 × 權重 ${NIANMING_W}（不入百分位）<span class="v ${vCls(N.contribution)}">${fmtV(N.contribution)}</span></div></div>`;
+  }
+  $('extrapanels').innerHTML = xp;
+  $('bifalist').innerHTML = r.bifa.length
+    ? r.bifa.map(h=>`<div class="bifa-item t${h.tone}"><span class="nm">${h.name}</span><span class="vs">「${h.verse}」</span><div class="nt">${h.note}</div></div>`).join('')
+    : '<div class="bifa-intro">本課未觸發內建格局。</div>';
   const dist = refDistribution(r.input.eventType);
-  const pct = {p: percentileOf(dist, r.score.total), n: dist.length};
+  const pct = {p: percentileOf(dist, r.score.baseTotal), n: dist.length};
   const g = r.score.grade;
   $('verdict').innerHTML = `
     <div class="seal${g.length===1?' g2':''}" role="img" aria-label="判詞：${g}">${g}</div>
     <div class="vt">
       <div class="total"><b class="${vCls(r.score.total)}">${fmtV(r.score.total)}</b>（切點 ±1／±3／±6 七級）</div>
-      <div class="pctl">高於「${r.input.eventType}」全部 <span class="mono">${pct.n.toLocaleString()}</span> 個可能課式中的 <b class="mono">${pct.p.toFixed(1)}%</b><span class="pctl-sub">（模型內百分位，非現實應驗率）</span></div>
+      <div class="pctl">高於「${r.input.eventType}」全部 <span class="mono">${pct.n.toLocaleString()}</span> 個可能課式中的 <b class="mono">${pct.p.toFixed(1)}%</b><span class="pctl-sub">（模型內百分位、不含年命個人項，非現實應驗率）</span></div>
       <div class="attr">${r.score.attribution}</div>
       ${r.score.kongNote?`<div class="kn">${r.score.kongNote}</div>`:''}
     </div>`;
