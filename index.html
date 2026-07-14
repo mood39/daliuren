@@ -228,6 +228,16 @@ details[open] summary::before{content:"▾ ";}
 .geju-stat{font-size:13px; color:var(--muted); margin-top:12px; letter-spacing:.05em;}
 .geju-stat b{font-weight:600;}
 .diverge{margin:14px 0 4px; padding:11px 14px; border:1px solid var(--gold-dim); background:#d3a75c12; font-size:13.5px; color:var(--gold); line-height:1.9; border-radius:3px;}
+.narr{margin-top:16px; padding-top:14px; border-top:1px solid var(--hair2);}
+.narr .nh{font-size:12px; letter-spacing:.25em; color:var(--gold-dim); margin-bottom:10px;}
+.narr .nrow{display:flex; gap:10px; font-size:13.5px; line-height:1.85; margin-bottom:7px;}
+.narr .nrow .rl{flex-shrink:0; width:auto; color:var(--bone); font-weight:600; letter-spacing:.05em;}
+.narr .nrow .rl.self{color:var(--gold);} .narr .nrow .rl.other{color:var(--water);}
+.narr .nrow .rt{color:var(--muted);}
+.narr .stage{color:var(--bone); font-weight:600;}
+.narr .synth{margin-top:10px; padding:10px 13px; background:var(--panel2); border:1px solid var(--hair2); border-radius:3px; font-size:13.5px; color:var(--muted); line-height:1.9;}
+.narr .synth b{color:var(--bone); font-weight:600;}
+.narr-note{font-size:11.5px; color:var(--faint); margin-top:8px; line-height:1.7;}
 #result{display:none;}
 footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); letter-spacing:.15em;}
 @media (prefers-reduced-motion:no-preference){
@@ -295,12 +305,14 @@ footer{margin-top:36px; text-align:center; font-size:12px; color:var(--faint); l
   <section class="card">
     <h2>四課</h2>
     <div class="kes" id="kes"></div>
+    <div id="fournarr"></div>
   </section>
 
   <section class="card">
     <h2>三傳</h2>
     <div class="methodline" id="methodline"></div>
     <div class="chuans" id="chuans"></div>
+    <div id="threenarr"></div>
     <details>
       <summary>起課日誌（每一步判斷的依據）</summary>
       <ol class="loglist" id="loglist"></ol>
@@ -1003,6 +1015,72 @@ const KETI_JUDGE = {
 };
 const ketiJudgeOf = m => KETI_JUDGE[m] || (m.startsWith('返吟') ? {tone:'凶', text:'天地盤對衝，事反覆往來，動而復動，去而復返。'} : {tone:'中', text:'依課體常法斷之。'});
 
+/* ============ 象辭生成（翻譯盤面為白話，隨事類變；描述象、不下斷語） ============ */
+const REL_PHRASE = {
+  shengWo:{通占:'受生扶（父母、貴助之象）',求財:'受生（本旺而財源需自尋）',官祿:'印綬生身（有蔭庇提攜）',婚姻:'受生（得長輩助）',疾病:'印星護身（有調養扶持）',詞訟:'印綬（文書、庇護之助）',行人:'受生（在外有依靠）'},
+  bihe:{通占:'比和（同類、平輩之象）',求財:'比劫（同儕分財、競爭）',官祿:'比肩（同僚並立）',婚姻:'比和（門當之象，或有情敵）',疾病:'比和（病情持平）',詞訟:'比和（對等相爭）',行人:'比和（同行者眾）'},
+  woSheng:{通占:'我所生（子孫、洩耗之象）',求財:'子孫洩氣（生財之源，然先損己力）',官祿:'傷官洩秀（才華外露，不利於官）',婚姻:'我生（付出、子息之象）',疾病:'洩氣（元氣外洩，宜防虛耗）',詞訟:'子孫（消解官事，訟宜和）',行人:'我生（在外有所付出）'},
+  woKe:{通占:'我所剋（受我掌控之象）',求財:'妻財（正合求財之用，財可入手）',官祿:'我剋（可駕馭之資源）',婚姻:'妻財（正為所求配偶之象）',疾病:'我剋（可制之機）',詞訟:'我剋（可勝之勢）',行人:'我剋（在外主動）'},
+  keWo:{通占:'剋我（官鬼、制約之象）',求財:'剋我（求財反受制、耗損）',官祿:'官星（正為所求功名之象）',婚姻:'剋我（配偶或有壓力、拘束）',疾病:'鬼爻剋身（病邪加身，最須留意）',詞訟:'官鬼（官非、對方之勢）',行人:'剋我（在外受制、有阻）'},
+};
+const JIANG_IMG = ['貴人（尊長、扶助）','螣蛇（驚憂、纏繞）','朱雀（文書、口舌）','六合（和合、成就）','勾陳（勾連、遲滯）','青龍（喜慶、財祿）','天空（虛耗、不實）','白虎（凶喪、道路、疾病）','太常（財帛、飲食、平順）','玄武（盜失、暗昧）','太陰（陰私、隱蔽）','天后（陰情、女子）'];
+function wsImg(v){ return v>=2?'旺相有氣':(v>=1?'得時':(v===0?'休而無力':(v>=-1?'受囚':'死氣衰極'))); }
+function statePhrase(b, ctx){
+  const sc = scoreChuan(b, ctx);
+  const rel = relToDay(BR_EL[b], ST_EL[ctx.dayStem]);
+  const relText = (REL_PHRASE[rel][ctx.eventName]||REL_PHRASE[rel]['通占']);
+  const parts = [`${BR[b]}（${EL_NAME[BR_EL[b]]}，${wsImg(sc.comps.時令.v)}）乘${JIANG_IMG[sc.jiang]}`, `於日為${relText}`];
+  if(sc.kong) parts.push(`且落旬空（${sc.kongInfo.n}，事虛而不實）`);
+  return {text: parts.join('，'), sc, rel};
+}
+function fourCourseNarrative(r){
+  const c = r.tt.courses, ctx = r.ctx;
+  const roles = [
+    {lab:'外在（一課・干上陽神）', b:c[0].up, who:'自己'},
+    {lab:'內在（二課・干上陰神）', b:c[1].up, who:'自己'},
+    {lab:'外在（三課・支上陽神）', b:c[2].up, who:'他人'},
+    {lab:'內在（四課・支上陰神）', b:c[3].up, who:'他人'},
+  ];
+  const lines = roles.map(rr => ({lab:rr.lab, ...statePhrase(rr.b, ctx)}));
+  // 自他關係：一課上神 對 三課上神 的生剋
+  const selfB = c[0].up, otherB = c[2].up;
+  const se = BR_EL[selfB], oe = BR_EL[otherB];
+  let rel;
+  if(se===oe) rel='彼此比和，勢均力敵，立場相類';
+  else if(sheng(se,oe)) rel='我生他，我方主動付出、洩力於彼';
+  else if(sheng(oe,se)) rel='他生我，彼方助我、資源向我而來';
+  else if(ke(se,oe)) rel='我剋他，我方居主控、可制彼';
+  else rel='他剋我，彼方居上、我受其制';
+  // 內外對照
+  const selfInOut = sheng(BR_EL[c[1].up],BR_EL[c[0].up])?'內助外':(ke(BR_EL[c[1].up],BR_EL[c[0].up])?'內剋外（表裡不一、內有掣肘）':'內外一氣');
+  return {lines, relation:rel, selfInOut};
+}
+function threeChuanNarrative(r){
+  const ch = r.tt.chuan, ctx = r.ctx;
+  const stages = ['初傳（事之初起、發端）','中傳（事之經過、轉折）','末傳（事之歸結、終局）'];
+  const lines = ch.map((b,i)=>({stage:stages[i], ...statePhrase(b, ctx)}));
+  // 勢頭：三傳遞生遞剋
+  const els = ch.map(b=>BR_EL[b]);
+  let flow;
+  if(sheng(els[0],els[1])&&sheng(els[1],els[2])) flow='三傳遞生，事勢節節相生、漸入佳境';
+  else if(ke(els[0],els[1])&&ke(els[1],els[2])) flow='三傳遞剋，一路相剋、步步遇阻';
+  else {
+    const seg=[];
+    seg.push(sheng(els[0],els[1])?'初生中（起手順遂）':ke(els[0],els[1])?'初剋中（發端即阻）':'初中無涉');
+    seg.push(sheng(els[1],els[2])?'中生末（過程助成）':ke(els[1],els[2])?'中剋末（中途生變）':'中末無涉');
+    flow=seg.join('，');
+  }
+  // 末傳歸宿：對日干
+  const dEl = ST_EL[ctx.dayStem], le=els[2];
+  let end;
+  if(sheng(le,dEl)) end='末傳生日干，事終有利於己、來歸於我';
+  else if(ke(le,dEl)) end='末傳剋日干，結局反制其身、終須提防';
+  else if(le===dEl) end='末傳比和日干，終歸平和、無大得失';
+  else if(sheng(dEl,le)) end='日干生末傳，終須己力付出、洩氣而成';
+  else end='日干剋末傳，終局受我掌控、可制';
+  return {lines, flow, end};
+}
+
 /* ---------- 主入口 ---------- */
 function computeCourse(input){
   const {y,m,d,hour,minute,eventType,lateZi} = input;
@@ -1042,10 +1120,13 @@ function computeCourse(input){
   const bifa = bifaRules({courses:tt.courses, chuan:tt.chuan, tp, dayStem:day.stem, dayBranch:day.branch, xun, jiangPan, method:tt.method});
   const lamMod = ((lam - 330)%30 + 30)%30;
   const nearBoundary = lamMod < 0.02 || lamMod > 29.98;
-  return {input, lam, yj, monBr, zs, day, tp, jiangPan, xun, tt, score, ctx, bifa, nearBoundary,
+  const R0 = {input, lam, yj, monBr, zs, day, tp, jiangPan, xun, tt, score, ctx, bifa, nearBoundary,
     tst: {used:useTST, lonUse, meridian, lonCorr:+lonCorr.toFixed(1), eotCorr:+eotCorr.toFixed(1), totalCorr:+totalCorr.toFixed(1),
       corrected: `${cy}-${String(cm).padStart(2,'0')}-${String(cd).padStart(2,'0')} ${String(ch).padStart(2,'0')}:${String(cmin).padStart(2,'0')}`},
     ovNotes};
+  R0.fourNarr = fourCourseNarrative(R0);
+  R0.threeNarr = threeChuanNarrative(R0);
+  return R0;
 }
 
 
@@ -1225,6 +1306,26 @@ function render(r){
   }).join('');
 
   $('loglist').innerHTML = r.tt.log.map(l=>`<li>${l}</li>`).join('');
+
+  // 四課象辭
+  const fn = r.fourNarr;
+  $('fournarr').innerHTML = `<div class="narr">
+    <div class="nh">象辭・自己與他人的內外</div>
+    ${fn.lines.map(l=>{const isSelf=l.lab.includes('自己')||l.lab.includes('干上');
+      const cls = l.lab.includes('一課')||l.lab.includes('二課')?'self':'other';
+      return `<div class="nrow"><span class="rl ${cls}">${l.lab}</span><span class="rt">${l.text}</span></div>`;}).join('')}
+    <div class="synth"><b>自他之勢：</b>${fn.relation}。<b>表裡：</b>${fn.selfInOut}。</div>
+    <div class="narr-note">以上為盤面之象的白話翻譯（隨所占事類調整取義），描述象而不代作吉凶斷語；所用財官生剋旺衰，皆可回溯至四課方塊與下方量化分項。</div>
+  </div>`;
+
+  // 三傳象辭
+  const tn = r.threeNarr;
+  $('threenarr').innerHTML = `<div class="narr">
+    <div class="nh">象辭・初起・經過・歸結</div>
+    ${tn.lines.map(l=>`<div class="nrow"><span class="rl">${l.stage}</span><span class="rt">${l.text}</span></div>`).join('')}
+    <div class="synth"><b>事勢：</b>${tn.flow}。<b>歸宿：</b>${tn.end}。</div>
+    <div class="narr-note">三傳表事之始、中、終。此為象的鋪陳，非結論；吉凶仍以上方經文層格局為綱、參酌量化分項自行綜合。</div>
+  </div>`;
 
   // 計分
   $('scoregrid').innerHTML = r.score.per.map((p,i)=>{
